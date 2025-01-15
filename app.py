@@ -9,6 +9,10 @@ app = Flask(__name__)
 swagger = Swagger(app)
 api = Api(app)
 
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
+
 api.add_resource(Teams, '/teams')
 api.add_resource(Matches, '/match')
 api.add_resource(Statistics, '/statistics')
