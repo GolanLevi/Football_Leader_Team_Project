@@ -3,3 +3,4 @@ Flasgger
 python-dotenv
 pymongo
 flask_restful
+requests

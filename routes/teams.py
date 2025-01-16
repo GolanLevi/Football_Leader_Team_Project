@@ -1,55 +1,59 @@
-from flask_restful import Resource, reqparse
+from flask_restful import Resource
 from flask import jsonify
 from database import db
+from modules.ranking_service import calculate_team_score
 
 class Teams(Resource):
     def get(self):
         """
-        Get all teams
+        Get all teams with rankings
         ---
         tags:
           - Teams
+        summary: Retrieve all teams sorted by their rankings
+        description: This endpoint returns a list of all teams, including their ranking score, sorted in descending order.
         responses:
           200:
-            description: List of all teams
-        """
-        teams = list(db.teams.find({}, {"_id": 0}))
-        return jsonify(teams)
-
-    def post(self):
-        """
-        Add a new team
-        ---
-        tags:
-          - Teams
-        parameters:
-          - name: body
-            in: body
-            required: true
+            description: A list of teams with rankings
             schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  example: "Real Madrid"
-                country:
-                  type: string
-                  example: "Spain"
-                founded:
-                  type: integer
-                  example: 1902
-                stadium:
-                  type: string
-                  example: "Santiago Bernabeu"
-        responses:
-          201:
-            description: Team added successfully
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: "Real Madrid"
+                  country:
+                    type: string
+                    example: "Spain"
+                  founded:
+                    type: integer
+                    example: 1902
+                  stadium:
+                    type: string
+                    example: "Santiago Bernabeu"
+                  score:
+                    type: integer
+                    example: 95
         """
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', required=True)
-        parser.add_argument('country', required=True)
-        parser.add_argument('founded', type=int, required=True)
-        parser.add_argument('stadium', required=True)
-        args = parser.parse_args()
-        db.teams.insert_one(args)
-        return {"message": "Team added successfully"}, 201
+        try:
+            teams = list(db.teams.find({}, {"_id": 0}))
+            matches = list(db.matches.find({}, {"_id": 0}))
+
+            team_scores = []
+            for team in teams:
+                score = calculate_team_score(matches, team.get('name', 'Unknown'))
+                team['score'] = score
+                team_scores.append({
+                    "name": team.get('name', 'Unknown'),
+                    "country": team.get('area', {}).get('name', 'Unknown'),  # Using nested structure for country
+                    "founded": team.get('founded', 'Unknown'),
+                    "stadium": team.get('venue', 'Unknown'),  # Using venue for stadium
+                    "score": score
+                })
+
+            team_scores = sorted(team_scores, key=lambda x: x['score'], reverse=True)
+
+            return jsonify(team_scores)
+        except Exception as e:
+            return {"error": str(e)}, 500
