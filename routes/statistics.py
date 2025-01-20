@@ -12,13 +12,6 @@ class Statistics(Resource):
         responses:
           200:
             description: Match statistics
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    totalMatches:
-                      type: integer
         """
         try:
             matches = list(db.matches.find({}, {"_id": 0}))

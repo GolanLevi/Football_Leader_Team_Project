@@ -3,48 +3,46 @@ from flask import jsonify
 from database import db
 
 class Matches(Resource):
-    def post(self):
+    def get(self):
         """
-        Add a new match
+        Get matches with optional filters (year, league)
         ---
         tags:
           - Matches
-        requestBody:
-          required: true
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  team1:
-                    type: string
-                    example: "Real Madrid"
-                  team2:
-                    type: string
-                    example: "Barcelona"
-                  team1_score:
-                    type: integer
-                    example: 2
-                  team2_score:
-                    type: integer
-                    example: 1
-                  date:
-                    type: string
-                    example: "2025-01-13"
+        summary: Retrieve matches with optional filters
+        description: This endpoint retrieves matches and supports filtering by year and league.
+        parameters:
+          - name: year
+            in: query
+            required: false
+            description: The year of the matches
+            schema:
+              type: integer
+              example: 2022
+          - name: league
+            in: query
+            required: false
+            description: The league of the matches (e.g., "La Liga", "Premier League")
+            schema:
+              type: string
+              example: "La Liga"
         responses:
-          201:
-            description: Match added successfully
+          200:
+            description: A list of matches
         """
         parser = reqparse.RequestParser()
-        parser.add_argument('team1', required=True)
-        parser.add_argument('team2', required=True)
-        parser.add_argument('team1_score', type=int, required=True)
-        parser.add_argument('team2_score', type=int, required=True)
-        parser.add_argument('date', required=True)
+        parser.add_argument('year', type=int, required=False, help="Year of the matches")
+        parser.add_argument('league', type=str, required=False, help="League of the matches")
         args = parser.parse_args()
 
+        filters = {}
+        if args['year']:
+            filters['date'] = {"$regex": f"^{args['year']}"}
+        if args['league']:
+            filters['league'] = args['league']
+
         try:
-            db.matches.insert_one(args)
-            return {"message": "Match added successfully"}, 201
+            matches = list(db.matches.find(filters, {"_id": 0}))
+            return jsonify(matches)
         except Exception as e:
             return {"error": str(e)}, 500
