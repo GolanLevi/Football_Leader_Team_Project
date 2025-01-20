@@ -1,22 +1,39 @@
-import os
-from dotenv import load_dotenv
 from pymongo import MongoClient
+from dotenv import load_dotenv
+import os
 
 # Load environment variables
 load_dotenv()
 
-# MongoDB connection
-db_password = os.getenv("DB_PASSWORD")
-client = MongoClient(f"mongodb+srv://golanlevi121:{db_password}@football-cluster.fzjiw.mongodb.net/?retryWrites=true&w=majority")
-db = client.football
-
+# Connect to MongoDB
+MONGO_URI = os.getenv("MONGO_URI")
+client = MongoClient(MONGO_URI)
+db = client["football-cluster"]
 
 def get_collection(collection_name):
     """
-    Return a collection object based on its name.
+    Get a collection from the database.
     """
-    try:
-        return db[collection_name]
-    except Exception as e:
-        print(f"Error fetching collection {collection_name}: {e}")
-        return None
+    return db[collection_name]
+
+def sync_data_to_cloud(local_collection_name, cloud_collection_name):
+    """
+    Sync data from a local collection to a cloud collection.
+    """
+    local_collection = db[local_collection_name]
+    cloud_collection = db[cloud_collection_name]
+
+    # Iterate through all documents in the local collection and sync to cloud
+    for doc in local_collection.find():
+        cloud_collection.update_one({"_id": doc["_id"]}, {"$set": doc}, upsert=True)
+
+    print(f"Data synced from {local_collection_name} to {cloud_collection_name}")
+
+# Example: Call this function to sync collections
+if __name__ == "__main__":
+    sync_data_to_cloud("premier_league_teams", "premier_league_teams")
+    sync_data_to_cloud("la_liga_teams", "la_liga_teams")
+    sync_data_to_cloud("matches_pl", "matches_pl")
+    sync_data_to_cloud("matches_pd", "matches_pd")
+    sync_data_to_cloud("matches_cl", "matches_cl")
+    sync_data_to_cloud("premier_league_players", "premier_league_players")
