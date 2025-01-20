@@ -7,6 +7,10 @@ app = Flask(__name__)
 swagger = Swagger(app)
 api = Api(app)
 
+@app.route('/')
+def home():
+    return "Welcome to Football Leader API"
+
 @app.route('/favicon.ico', methods=['GET'])
 def favicon():
     """
