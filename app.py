@@ -7,6 +7,12 @@ app = Flask(__name__)
 swagger = Swagger(app)
 api = Api(app)
 
+@app.route('/favicon.ico', methods=['GET'])
+def favicon():
+    """
+    Handle favicon requests to prevent 404 errors.
+    """
+    return '', 204
 
 @app.route('/db-check', methods=['GET'])
 def db_check():
@@ -35,7 +41,6 @@ def db_check():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.route('/premier-league-teams', methods=['GET'])
 def get_premier_league_teams():
     """
@@ -58,7 +63,7 @@ def get_premier_league_teams():
     """
     try:
         collection = get_collection("premier_league_teams")
-        if not collection:
+        if collection is None:
             return jsonify({"error": "Collection not found"}), 404
 
         teams = list(collection.find({}, {"_id": 0}))
@@ -69,6 +74,7 @@ def get_premier_league_teams():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# שאר הנתיבים נשארו ללא שינוי אך תוקנו לפי הצורך
 
 @app.route('/la-liga-teams', methods=['GET'])
 def get_la_liga_teams():
@@ -92,7 +98,7 @@ def get_la_liga_teams():
     """
     try:
         collection = get_collection("la_liga_teams")
-        if not collection:
+        if collection is None:
             return jsonify({"error": "Collection not found"}), 404
 
         teams = list(collection.find({}, {"_id": 0}))
@@ -102,7 +108,6 @@ def get_la_liga_teams():
             return jsonify({"error": "No teams found for La Liga"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/matches-pl', methods=['GET'])
 def get_premier_league_matches():
@@ -126,7 +131,7 @@ def get_premier_league_matches():
     """
     try:
         collection = get_collection("matches_pl")
-        if not collection:
+        if collection is None:
             return jsonify({"error": "Collection not found"}), 404
 
         matches = list(collection.find({}, {"_id": 0}))
@@ -136,7 +141,6 @@ def get_premier_league_matches():
             return jsonify({"error": "No matches found for Premier League"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/matches-pd', methods=['GET'])
 def get_la_liga_matches():
@@ -160,7 +164,7 @@ def get_la_liga_matches():
     """
     try:
         collection = get_collection("matches_pd")
-        if not collection:
+        if collection is None:
             return jsonify({"error": "Collection not found"}), 404
 
         matches = list(collection.find({}, {"_id": 0}))
@@ -170,7 +174,6 @@ def get_la_liga_matches():
             return jsonify({"error": "No matches found for La Liga"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/matches-cl', methods=['GET'])
 def get_champions_league_matches():
@@ -194,7 +197,7 @@ def get_champions_league_matches():
     """
     try:
         collection = get_collection("matches_cl")
-        if not collection:
+        if collection is None:
             return jsonify({"error": "Collection not found"}), 404
 
         matches = list(collection.find({}, {"_id": 0}))
@@ -204,7 +207,6 @@ def get_champions_league_matches():
             return jsonify({"error": "No matches found for Champions League"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/premier-league-players', methods=['GET'])
 def get_premier_league_players():
@@ -228,7 +230,7 @@ def get_premier_league_players():
     """
     try:
         collection = get_collection("premier_league_players")
-        if not collection:
+        if collection is None:
             return jsonify({"error": "Collection not found"}), 404
 
         players = list(collection.find({}, {"_id": 0}))
@@ -238,7 +240,6 @@ def get_premier_league_players():
             return jsonify({"error": "No players found for Premier League"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
