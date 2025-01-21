@@ -1,48 +1,115 @@
-from flask_restful import Resource, reqparse
-from flask import jsonify
-from database import db
+from flask import Blueprint, jsonify
+from database import get_collection
 
-class Matches(Resource):
-    def get(self):
-        """
-        Get matches with optional filters (year, league)
-        ---
-        tags:
-          - Matches
-        summary: Retrieve matches with optional filters
-        description: This endpoint retrieves matches and supports filtering by year and league.
-        parameters:
-          - name: year
-            in: query
-            required: false
-            description: The year of the matches
-            schema:
-              type: integer
-              example: 2022
-          - name: league
-            in: query
-            required: false
-            description: The league of the matches (e.g., "La Liga", "Premier League")
-            schema:
-              type: string
-              example: "La Liga"
-        responses:
-          200:
-            description: A list of matches
-        """
-        parser = reqparse.RequestParser()
-        parser.add_argument('year', type=int, required=False, help="Year of the matches")
-        parser.add_argument('league', type=str, required=False, help="League of the matches")
-        args = parser.parse_args()
+matches_bp = Blueprint('matches', __name__)
 
-        filters = {}
-        if args['year']:
-            filters['date'] = {"$regex": f"^{args['year']}"}
-        if args['league']:
-            filters['league'] = args['league']
+@matches_bp.route('/pl', methods=['GET'])
+def get_premier_league_matches():
+    """
+    Get all matches from the Premier League.
+    ---
+    tags:
+      - Matches
+    summary: Get Premier League Matches
+    description: Get a list of all matches from the Premier League.
+    responses:
+      200:
+        description: List of all matches from the Premier League.
+        schema:
+          type: object
+          properties:
+            premier_league_matches:
+              type: array
+              items:
+                type: object
+      404:
+        description: No matches found for Premier League.
+      500:
+        description: Internal server error.
+    """
+    try:
+        collection = get_collection("matches_pl")
+        if collection is None:
+            return jsonify({"error": "Collection not found"}), 404
 
-        try:
-            matches = list(db.matches.find(filters, {"_id": 0}))
-            return jsonify(matches)
-        except Exception as e:
-            return {"error": str(e)}, 500
+        matches = list(collection.find({}, {"_id": 0}))
+        if matches:
+            return jsonify({"premier_league_matches": matches}), 200
+        else:
+            return jsonify({"error": "No matches found for Premier League"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@matches_bp.route('/pd', methods=['GET'])
+def get_la_liga_matches():
+    """
+    Get all matches from La Liga.
+    ---
+    tags:
+      - Matches
+    summary: Get La Liga Matches
+    description: Get a list of all matches from La Liga.
+    responses:
+      200:
+        description: List of all matches from La Liga.
+        schema:
+          type: object
+          properties:
+            la_liga_matches:
+              type: array
+              items:
+                type: object
+      404:
+        description: No matches found for La Liga.
+      500:
+        description: Internal server error.
+    """
+    try:
+        collection = get_collection("matches_pd")
+        if collection is None:
+            return jsonify({"error": "Collection not found"}), 404
+
+        matches = list(collection.find({}, {"_id": 0}))
+        if matches:
+            return jsonify({"la_liga_matches": matches}), 200
+        else:
+            return jsonify({"error": "No matches found for La Liga"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@matches_bp.route('/cl', methods=['GET'])
+def get_champions_league_matches():
+    """
+    Get all matches from the Champions League.
+    ---
+    tags:
+      - Matches
+    summary: Get Champions League Matches
+    description: Get a list of all matches from the Champions League.
+    responses:
+      200:
+        description: List of all matches from the Champions League.
+        schema:
+          type: object
+          properties:
+            champions_league_matches:
+              type: array
+              items:
+                type: object
+      404:
+        description: No matches found for Champions League.
+      500:
+        description: Internal server error.
+    """
+    try:
+        collection = get_collection("matches_cl")
+        if collection is None:
+            return jsonify({"error": "Collection not found"}), 404
+
+        matches = list(collection.find({}, {"_id": 0}))
+        if matches:
+            return jsonify({"champions_league_matches": matches}), 200
+        else:
+            return jsonify({"error": "No matches found for Champions League"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
