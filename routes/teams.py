@@ -119,14 +119,14 @@ def get_premier_league_players():
 
 
 @teams_bp.route('/rankings', methods=['GET'])
-def get_team_rankings():
+def get_teams_rankings():
     """
     Get rankings of the best teams based on the algorithm.
     ---
     tags:
       - Teams
-    summary: Get Team Rankings
-    description: Get rankings of the best teams using the custom ranking algorithm.
+    summary: Get Teams Rankings
+    description: Get rankings of the best teams using the custom ranking algorithm, including relevant Champions League matches.
     responses:
       200:
         description: List of team rankings.
@@ -140,38 +140,77 @@ def get_team_rankings():
                 properties:
                   rank:
                     type: integer
-                    example: 1
                   team_name:
                     type: string
-                    example: "Manchester City"
                   total_points:
                     type: integer
-                    example: 87
       500:
         description: Internal server error.
     """
     try:
-        teams_collection = get_collection("premier_league_teams")
-        matches_collection = get_collection("matches_pl")
+        # Fetch collections
+        matches_pl_collection = get_collection("matches_pl")
+        matches_pd_collection = get_collection("matches_pd")
+        matches_cl_collection = get_collection("matches_cl")
+        premier_league_teams_collection = get_collection("premier_league_teams")
+        la_liga_teams_collection = get_collection("la_liga_teams")
 
-        if teams_collection is None or matches_collection is None:
+        # Check collections
+        if (
+            matches_pl_collection is None
+            or matches_pd_collection is None
+            or matches_cl_collection is None
+            or premier_league_teams_collection is None
+            or la_liga_teams_collection is None
+        ):
             return jsonify({"error": "One or more collections not found"}), 404
 
-        teams = list(teams_collection.find({}, {"_id": 0}))
-        matches = list(matches_collection.find({}, {"_id": 0}))
+        # Fetch matches
+        matches_pl = list(matches_pl_collection.find({}, {"_id": 0}))
+        matches_pd = list(matches_pd_collection.find({}, {"_id": 0}))
 
+        # Fetch relevant Champions League matches
+        premier_league_teams = list(premier_league_teams_collection.find({}, {"_id": 0, "name": 1}))
+        la_liga_teams = list(la_liga_teams_collection.find({}, {"_id": 0, "name": 1}))
+        all_relevant_teams = {team["name"] for team in premier_league_teams + la_liga_teams}
+
+        matches_cl = list(
+            matches_cl_collection.find(
+                {
+                    "$or": [
+                        {"home_team": {"$in": list(all_relevant_teams)}},
+                        {"away_team": {"$in": list(all_relevant_teams)}},
+                    ]
+                },
+                {"_id": 0},
+            )
+        )
+
+        # Combine matches
+        all_matches = matches_pl + matches_pd + matches_cl
+
+        # Process team rankings
+        all_teams = premier_league_teams + la_liga_teams
         rankings = []
-        for team in teams:
+        for team in all_teams:
             team_name = team.get("name")
-            if team_name:
-                total_points = calculate_team_score(matches, team_name)
-                rankings.append({"team_name": team_name, "total_points": total_points})
+            if not team_name:
+                continue
 
+            # Calculate points for the team
+            total_points = calculate_team_score(all_matches, team_name)
+            rankings.append({"team_name": team_name, "total_points": total_points})
+
+        # Sort rankings by total points
         rankings = sorted(rankings, key=lambda x: x["total_points"], reverse=True)
 
-        for index, team in enumerate(rankings, start=1):
-            team["rank"] = index
+        # Add rank to each team
+        for idx, rank in enumerate(rankings, start=1):
+            rank["rank"] = idx
 
         return jsonify({"rankings": rankings}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+

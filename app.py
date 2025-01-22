@@ -4,10 +4,12 @@ from flask_restful import Api
 from database import db
 from routes.matches import matches_bp  # Blueprint for matches
 from routes.teams import teams_bp  # Blueprint for teams
+from flask_cors import CORS
 
 app = Flask(__name__)
 swagger = Swagger(app)
 api = Api(app)
+CORS(app)
 
 # Home route
 @app.route('/')
