@@ -71,7 +71,11 @@ def get_la_liga_teams():
         if collection is None:
             return jsonify({"error": "Collection not found"}), 404
 
-        teams = list(collection.find({}, {"_id": 0}))
+        teams = list(collection.find({}))
+
+        for team in teams:
+            team['_id'] = str(team['_id'])
+
         if teams:
             return jsonify({"la_liga_teams": teams}), 200
         else:
