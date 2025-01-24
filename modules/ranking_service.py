@@ -10,29 +10,33 @@ def calculate_team_score(matches, team_name):
     away_goal_difference = 0
 
     for match in matches:
-        # Ensure score keys are present and not None
+        # Ensure score keys and relevant team data are present
         if (
             'score' in match
-            and 'home' in match['score']
-            and 'away' in match['score']
-            and match['score']['home'] is not None
-            and match['score']['away'] is not None
+            and 'fullTime' in match['score']
+            and 'home' in match['score']['fullTime']
+            and 'away' in match['score']['fullTime']
+            and match['score']['fullTime']['home'] is not None
+            and match['score']['fullTime']['away'] is not None
         ):
-            if team_name == match.get('home_team'):
+            home_team = match.get('homeTeam', {}).get('name')
+            away_team = match.get('awayTeam', {}).get('name')
+            home_score = match['score']['fullTime']['home']
+            away_score = match['score']['fullTime']['away']
+
+            if team_name == home_team:
                 # Home team logic
-                if match['score']['home'] > match['score']['away']:
+                if home_score > away_score:
                     total_points += 3
-                    home_goal_difference += match['score']['home'] - match['score']['away']
-                elif match['score']['home'] == match['score']['away']:
+                    home_goal_difference += home_score - away_score
+                elif home_score == away_score:
                     total_points += 1
-                else:
-                    total_points -= 3
-            elif team_name == match.get('away_team'):
+            elif team_name == away_team:
                 # Away team logic
-                if match['score']['away'] > match['score']['home']:
+                if away_score > home_score:
                     total_points += 6
-                    away_goal_difference += (match['score']['away'] - match['score']['home']) * 1.5
-                elif match['score']['away'] == match['score']['home']:
+                    away_goal_difference += (away_score - home_score) * 1.5
+                elif away_score == home_score:
                     total_points += 2
 
     total_points += home_goal_difference + away_goal_difference
