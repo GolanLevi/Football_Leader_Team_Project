@@ -16,9 +16,9 @@ def get_collection(collection_name):
     """
     return db[collection_name]
 
-def sync_data_to_cloud_bulk(local_collection_name, cloud_collection_name):
+def sync_data_to_cloud_bulk(local_collection_name, cloud_collection_name, identifier_field):
     """
-    Sync data from a local collection to a cloud collection.
+    Sync data from a local collection to a cloud collection using a custom identifier field.
     """
     try:
         local_collection = db[local_collection_name]
@@ -32,7 +32,7 @@ def sync_data_to_cloud_bulk(local_collection_name, cloud_collection_name):
         # Prepare bulk operations
         operations = [
             UpdateOne(
-                {"_id": doc["_id"]},  # Match by the document ID
+                {identifier_field: doc[identifier_field]},  # Match by the custom identifier
                 {"$set": doc},  # Update the document
                 upsert=True  # Insert if it doesn't exist
             )
@@ -48,15 +48,15 @@ def sync_data_to_cloud_bulk(local_collection_name, cloud_collection_name):
         print(f"Error syncing data from {local_collection_name} to {cloud_collection_name}: {e}")
 
 if __name__ == "__main__":
-    # Sync all relevant collections
+    # Sync all relevant collections with their custom identifiers
     collections_to_sync = [
-        ("premier_league_teams", "premier_league_teams"),
-        ("la_liga_teams", "la_liga_teams"),
-        ("matches_pl", "matches_pl"),
-        ("matches_pd", "matches_pd"),
-        ("matches_cl", "matches_cl"),
-        ("premier_league_players", "premier_league_players")
+        ("premier_league_teams", "premier_league_teams", "team_name"),  # Sync teams by team_name
+        ("la_liga_teams", "la_liga_teams", "team_name"),  # Sync teams by team_name
+        ("matches_pl", "matches_pl", "match_id"),  # Sync matches by match_id
+        ("matches_pd", "matches_pd", "match_id"),  # Sync matches by match_id
+        ("matches_cl", "matches_cl", "match_id"),  # Sync matches by match_id
+        ("premier_league_players", "premier_league_players", "_id")  # Sync players by _id (no changes here)
     ]
 
-    for local_collection, cloud_collection in collections_to_sync:
-        sync_data_to_cloud_bulk(local_collection, cloud_collection)
+    for local_collection, cloud_collection, identifier_field in collections_to_sync:
+        sync_data_to_cloud_bulk(local_collection, cloud_collection, identifier_field)

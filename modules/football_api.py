@@ -1,111 +1,91 @@
-import requests
-import os
-import logging
 from pymongo import MongoClient
 from dotenv import load_dotenv
+import os
+import requests
 
 # Load environment variables
 load_dotenv()
 
-# Configuration Variables
+# Constants
 API_KEY = os.getenv("FOOTBALL_API_KEY")
 BASE_URL = "https://api.football-data.org/v4/"
 HEADERS = {"X-Auth-Token": API_KEY}
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 
-# Initialize Logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Connect to MongoDB
+client = MongoClient(MONGO_URI)
+db = client["football-cluster"]
 
-# Database Connection
-def connect_to_db():
-    """Connect to MongoDB and return the database instance."""
-    client = MongoClient(MONGO_URI)
-    return client["football-cluster"]
+def fetch_and_insert_teams(competition, collection_name):
+    """
+    Fetch teams for a specific competition and insert into MongoDB.
+    """
+    url = f"{BASE_URL}competitions/{competition}/teams"
+    response = requests.get(url, headers=HEADERS)
+    response.raise_for_status()
+    teams = response.json().get("teams", [])
 
-def fetch_data_from_api(endpoint):
-    """Generic function to fetch data from the Football API."""
-    url = f"{BASE_URL}{endpoint}"
-    try:
-        response = requests.get(url, headers=HEADERS)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Error fetching data from {url}: {e}")
-        return {}
+    collection = db[collection_name]
+    collection.delete_many({})  # Clear existing data
 
-def save_to_db(collection, query, data):
-    """Generic function to save data to MongoDB."""
-    try:
-        collection.update_one(query, {"$set": data}, upsert=True)
-    except Exception as e:
-        logging.error(f"Error saving data to DB: {e}")
+    for team in teams:
+        filtered_team = {
+            "_id": team.get("id"),
+            "name": team.get("name"),
+            "shortName": team.get("shortName"),
+            "tla": team.get("tla"),
+            "crest": team.get("crest"),
+            "address": team.get("address"),
+            "website": team.get("website"),
+            "founded": team.get("founded"),
+            "venue": team.get("venue"),
+            "runningCompetitions": team.get("runningCompetitions"),
+            "coach": team.get("coach"),
+            "squad": team.get("squad"),
+        }
+        collection.insert_one(filtered_team)
+    print(f"Inserted {len(teams)} teams into {collection_name}.")
 
-def fetch_teams(league_code, db):
-    """Fetch and save teams for a given league."""
-    endpoint = f"competitions/{league_code}/teams"
-    data = fetch_data_from_api(endpoint)
-    teams = data.get("teams", [])
+def fetch_and_insert_matches(competition, collection_name):
+    """
+    Fetch matches for a specific competition and insert into MongoDB.
+    """
+    url = f"{BASE_URL}competitions/{competition}/matches"
+    response = requests.get(url, headers=HEADERS)
+    response.raise_for_status()
+    matches = response.json().get("matches", [])
 
-    if teams:
-        if league_code == "PL":
-            collection = db["premier_league_teams"]
-        elif league_code == "PD":
-            collection = db["la_liga_teams"]
-            for team in teams:
-                save_to_db(collection, {"id": team["id"]}, team)
-    return teams
+    collection = db[collection_name]
+    collection.delete_many({})  # Clear existing data
 
-def fetch_matches(league_code, season, db):
-    """Fetch and save matches for a given league and season."""
-    endpoint = f"competitions/{league_code}/matches?season={season}"
-    data = fetch_data_from_api(endpoint)
-    matches = data.get("matches", [])
+    for match in matches:
+        filtered_match = {
+            "_id": match.get("id"),
+            "competition": match.get("competition"),
+            "season": match.get("season"),
+            "utcDate": match.get("utcDate"),
+            "homeTeam": match.get("homeTeam"),
+            "awayTeam": match.get("awayTeam"),
+            "score": match.get("score"),
+        }
+        collection.insert_one(filtered_match)
+    print(f"Inserted {len(matches)} matches into {collection_name}.")
 
-    if matches:
-        collection = db["matches"]
-        for match in matches:
-            query = {
-                "home_team": match["homeTeam"].get("name"),
-                "away_team": match["awayTeam"].get("name"),
-                "date": match.get("utcDate"),
-                "season": season
-            }
-            save_to_db(collection, query, match)
-    return matches
+def main():
+    """
+    Fetch data from API and insert into MongoDB collections.
+    """
+    competitions = {
+        "PL": {"teams": "premier_league_teams", "matches": "matches_pl"},
+        "PD": {"teams": "la_liga_teams", "matches": "matches_pd"},
+        "CL": {"matches": "matches_cl"},
+    }
 
-def fetch_champions_league_matches(db):
-    """Fetch and save Champions League matches."""
-    endpoint = "competitions/CL/matches"
-    data = fetch_data_from_api(endpoint)
-    matches = data.get("matches", [])
-
-    if matches:
-        collection = db["champions_league_matches"]
-        for match in matches:
-            query = {
-                "home_team": match["homeTeam"].get("name"),
-                "away_team": match["awayTeam"].get("name"),
-                "date": match.get("utcDate")
-            }
-            save_to_db(collection, query, match)
-    return matches
-
-def fetch_and_save_data():
-    """Main function to fetch and save all relevant football data."""
-    db = connect_to_db()
-
-    # Fetch teams
-    premier_league_teams = fetch_teams("PL", db)
-    la_liga_teams = fetch_teams("PD", db)
-
-    # Fetch matches
-    seasons = [2025, 2024, 2023, 2022]
-    for season in seasons:
-        fetch_matches("PL", season, db)
-        fetch_matches("PD", season, db)
-
-    # Fetch Champions League matches
-    fetch_champions_league_matches(db)
+    for competition, collections in competitions.items():
+        if "teams" in collections:
+            fetch_and_insert_teams(competition, collections["teams"])
+        if "matches" in collections:
+            fetch_and_insert_matches(competition, collections["matches"])
 
 if __name__ == "__main__":
-    fetch_and_save_data()
+    main()

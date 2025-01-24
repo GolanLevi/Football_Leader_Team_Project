@@ -45,10 +45,23 @@ def db_check():
     """
     try:
         collections = db.list_collection_names()
-        return jsonify({"message": "Database is connected", "collections": collections}), 200
+
+        # Check if new identifier fields exist in relevant collections
+        identifier_check = {}
+        for collection_name in ["matches_pl", "matches_pd", "matches_cl", "premier_league_teams", "la_liga_teams"]:
+            collection = db[collection_name]
+            sample = collection.find_one({})
+            if sample:
+                if collection_name in ["matches_pl", "matches_pd", "matches_cl"]:
+                    identifier_check[collection_name] = "match_id" in sample
+                elif collection_name in ["premier_league_teams", "la_liga_teams"]:
+                    identifier_check[collection_name] = "team_name" in sample
+            else:
+                identifier_check[collection_name] = "No documents in collection"
+
+        return jsonify({"message": "Database is connected", "collections": collections, "identifier_check": identifier_check}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # Register Blueprints
 app.register_blueprint(matches_bp, url_prefix="/matches")
